@@ -164,7 +164,7 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
 
 	// Read P from the device
 	CopyFromDeviceMatrix(P, Pd); 
-	printf("%d", BLOCK_DIM);
+	printf("%d %d", M.width, M.height);
 
 	// Free device matrices
 	FreeDeviceMatrix(&Md);

@@ -51,31 +51,33 @@
 // Matrix multiplication kernel thread specification
 __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P)
 {
-	//const int TILE_WIDTH = 128 / sizeof(float);
 	const int TILE_WIDTH = 32;
 	int Row = blockIdx.y*TILE_WIDTH + threadIdx.y;
 	int Col = blockIdx.x*TILE_WIDTH + threadIdx.x;
 
-	float Pvalue = 0;
+	float Pvalue = 0.0;
 
-	// Copy from global to share memory
 	__shared__ float Ms[TILE_WIDTH*TILE_WIDTH], Ns[TILE_WIDTH*TILE_WIDTH], Ps[TILE_WIDTH*TILE_WIDTH];
-	Ms[Row*TILE_WIDTH+Col] = M.elements[Row*TILE_WIDTH+Col];
-	Ns[Row*TILE_WIDTH+Col] = N.elements[Row*TILE_WIDTH+Col];
-	//Ps[Row*TILE_WIDTH+Col] = P.elements[Row*TILE_WIDTH+Col];
-	Ps[Row*TILE_WIDTH+Col] = Pvalue;
-	__syncthreads();
 	
-	// Compute on shared memory
-	for (int k = 0; k < TILE_WIDTH; k++){
-		float M_elem = Ms[Row*TILE_WIDTH + k];
-		float N_elem = Ns[k*TILE_WIDTH + Col];
-		Ps[Row*TILE_WIDTH + Col] += M_elem * N_elem;
-	}
-	__syncthreads();
+	for (int i = 0; i < M.width/TILE_WIDTH; i++){
+		// Copy from global to share memory
+		Ms[threadIdx.y*TILE_WIDTH + threadIdx.x] = M.elements[Row*M.width + i*TILE_WIDTH + threadIdx.x];
+		Ns[threadIdx.y*TILE_WIDTH + threadIdx.x] = N.elements[(i*TILE_WIDTH + threadIdx.y)*N.width + Col];
+		//Ps[Row*TILE_WIDTH+Col] = P.elements[Row*TILE_WIDTH+Col];
+		//Ps[threadIdx.y*TILE_WIDTH + threadIdx.x] = Pvalue;
 
+		__syncthreads();
+	
+		// Compute on shared memory
+		for (int k = 0; k < TILE_WIDTH; k++){
+			float M_elem = Ms[threadIdx.y*TILE_WIDTH + k];
+			float N_elem = Ns[k*TILE_WIDTH + threadIdx.x];
+			Pvalue += M_elem * N_elem;
+		}
+		__syncthreads();
+	}
 	// Copy back to global memory
-	P.elements[Row*TILE_WIDTH + Col] = Ps[Row*TILE_WIDTH + Col];
+	P.elements[Row*P.width + Col] = Pvalue;
 	//P.elements[0] = TILE_WIDTH;
 }
 
