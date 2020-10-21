@@ -154,8 +154,9 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
 
 	// Setup the execution configuration
 	const int BLOCK_DIM = 32;
-	const int GRID_DIM = M.width / 32;
-	dim3 dimGrid(GRID_DIM, GRID_DIM);
+	const int GRID_DIM_y = P.height / BLOCK_DIM + 1;
+	const int GRID_DIM_x = P.width / BLOCK_DIM + 1;
+	dim3 dimGrid(GRID_DIM_x, GRID_DIM_y);
 	dim3 dimBlock(BLOCK_DIM, BLOCK_DIM);
 
 	// Launch the device computation threads!
@@ -164,7 +165,6 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
 
 	// Read P from the device
 	CopyFromDeviceMatrix(P, Pd); 
-	printf("%d %d", M.width, M.height);
 
 	// Free device matrices
 	FreeDeviceMatrix(&Md);

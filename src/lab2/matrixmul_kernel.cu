@@ -57,17 +57,23 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P)
 
 	float Pvalue = 0.0;
 
-	__shared__ float Ms[TILE_WIDTH*TILE_WIDTH], Ns[TILE_WIDTH*TILE_WIDTH], Ps[TILE_WIDTH*TILE_WIDTH];
+	__shared__ float Ms[TILE_WIDTH*TILE_WIDTH], Ns[TILE_WIDTH*TILE_WIDTH];
 	
-	for (int i = 0; i < M.width/TILE_WIDTH; i++){
-		// Copy from global to share memory
-		Ms[threadIdx.y*TILE_WIDTH + threadIdx.x] = M.elements[Row*M.width + i*TILE_WIDTH + threadIdx.x];
-		Ns[threadIdx.y*TILE_WIDTH + threadIdx.x] = N.elements[(i*TILE_WIDTH + threadIdx.y)*N.width + Col];
-		//Ps[Row*TILE_WIDTH+Col] = P.elements[Row*TILE_WIDTH+Col];
-		//Ps[threadIdx.y*TILE_WIDTH + threadIdx.x] = Pvalue;
+	for (int i = 0; i < M.width/TILE_WIDTH + 1; i++){
+		// Zero the paddings
+		Ms[threadIdx.y*TILE_WIDTH + threadIdx.x] = 0.0;
+		Ns[threadIdx.y*TILE_WIDTH + threadIdx.x] = 0.0;
 
+		// Copy from global to share memory
+		if (Row < M.height && i*TILE_WIDTH + threadIdx.x < M.width){
+			Ms[threadIdx.y*TILE_WIDTH + threadIdx.x] = M.elements[Row*M.width + i*TILE_WIDTH + threadIdx.x];
+		} 
+
+		if (Col < N.width && i*TILE_WIDTH + threadIdx.y < N.height){
+			Ns[threadIdx.y*TILE_WIDTH + threadIdx.x] = N.elements[(i*TILE_WIDTH + threadIdx.y)*N.width + Col];
+		}
 		__syncthreads();
-	
+
 		// Compute on shared memory
 		for (int k = 0; k < TILE_WIDTH; k++){
 			float M_elem = Ms[threadIdx.y*TILE_WIDTH + k];
@@ -77,8 +83,9 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P)
 		__syncthreads();
 	}
 	// Copy back to global memory
-	P.elements[Row*P.width + Col] = Pvalue;
-	//P.elements[0] = TILE_WIDTH;
+	if (Row < P.height && Col < P.width){
+		P.elements[Row*P.width + Col] = Pvalue;
+	}
 }
 
 #endif // #ifndef _MATRIXMUL_KERNEL_H_
